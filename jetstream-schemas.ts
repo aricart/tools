@@ -3,6 +3,7 @@
 import { join } from "https://deno.land/std/path/mod.ts";
 import { walk } from "https://deno.land/std/fs/mod.ts";
 import { parse } from "https://deno.land/std/flags/mod.ts";
+import { cyan, green, yellow } from "https://deno.land/std/fmt/colors.ts";
 
 const root = "/Users/synadia/Dropbox/code/src";
 const repo = "https://github.com/nats-io/jsm.go";
@@ -12,13 +13,14 @@ const args = parse(Deno.args, {
   alias: {
     "f": ["filter"],
     "u": ["update"],
+    "r": ["raw"],
   },
   default: {
     f: "",
     u: false,
   },
   string: ["filter"],
-  boolean: ["update"],
+  boolean: ["update", "raw"],
 });
 
 const localRepo = join(root, u.hostname, u.pathname);
@@ -57,9 +59,15 @@ if (matches.size === 0) {
 } else if (matches.size === 1) {
   matches.forEach(async (path) => {
     console.dir(`file://${join(fp, path)}`);
-    const t = await Deno.readTextFile(path);
-    const d = JSON.parse(t);
-    console.dir(JSON.parse(JSON.stringify(d)));
+    const txt = await Deno.readTextFile(path);
+    if (!args.raw) {
+      const d = JSON.parse(txt);
+      const t = parseSchema(d);
+      console.log(JSON.stringify(t, null, " "));
+      // processSchema(d);
+    } else {
+      console.log(txt);
+    }
   });
 } else {
   matches.forEach((path) => {
@@ -67,4 +75,130 @@ if (matches.size === 0) {
   });
 }
 
-// git clone --branch v1.0.0 https://github.com/nats-io/nats.deno.git
+interface Schema {
+  $schema: string;
+  $id: string;
+  title: string;
+  description: string;
+  type: string;
+  properties: Record<string, Schema>;
+  required: string[];
+  oneOf?: Schema[];
+  allOf?: Schema[];
+  items: Schema;
+}
+
+class Type {
+  name: string;
+  optional: boolean;
+  type: string;
+  children!: Type[];
+
+  constructor(name: string, optional: boolean, type: string) {
+    this.name = name ?? "";
+    this.optional = optional;
+    this.type = type;
+  }
+
+  addChild(t: Type) {
+    if (this.children === undefined) {
+      this.children = [];
+    }
+    this.children.push(t);
+  }
+
+  render(pad: string = "") {
+    if (this.type === "object") {
+      const n = this.name ? `${pad}${this.name}: {` : `${pad}{`;
+      console.log(`${n}`);
+    }
+  }
+}
+
+function parseSchema(s: Schema, name = "", p?: Type): Type {
+  const t = new Type(name, !(s.required && s.required.indexOf(name)), s.type);
+  if (p) {
+    p.addChild(t);
+  }
+  parseChildren(s, t);
+  return t;
+}
+
+function parseChildren(s: Schema, p: Type) {
+  if (s.properties) {
+    Object.keys(s.properties).forEach((v) => {
+      parseSchema(s.properties[v], v, p);
+    });
+  }
+  if (s.oneOf) {
+    s.oneOf.forEach((v) => {
+      parseSchema(v, "", p);
+    });
+  }
+  if (s.allOf) {
+    s.allOf.forEach((v) => {
+      parseSchema(v, "", p);
+    });
+  }
+}
+
+//
+// function processProps(s: Schema, indent = "") {
+//   if (s.oneOf) {
+//     s.oneOf.forEach((v) => {
+//       processProps(v, indent + "  ");
+//     });
+//   }
+//   if (s.allOf) {
+//     s.allOf.forEach((v) => {
+//       processProps(v, indent + "  ");
+//     });
+//   }
+//   if (s.properties) {
+//     processProperties(s, indent + "  ");
+//   }
+// }
+//
+// function processProperties(s: Schema, indent = "") {
+//   Object.keys(s.properties).forEach((k) => {
+//     const ns = s.properties[k];
+//     const r = s.required?.indexOf(k) !== -1 ? "" : "?";
+//     if (ns.type === "integer") {
+//       ns.type = "number";
+//     }
+//     if (ns.type === "array") {
+//       console.log(`${indent}${k}${r}: [`);
+//       console.log(`  ${indent}{`);
+//       processProps(ns.items, "    " + indent);
+//       console.log(`  ${indent}},`);
+//       console.log(`${indent}],`);
+//     } else if (ns.type === "object") {
+//       console.log(`${indent}${k}${r}: {`);
+//       processProps(ns, "  " + indent);
+//       console.log(`${indent}},`);
+//     } else if (ns.type !== undefined) {
+//       console.log(`${indent}${k}${r}: ${ns.type},`);
+//     }
+//
+//     if (ns.oneOf) {
+//       ns.oneOf.forEach((v) => {
+//         processProps(v, indent + "  ");
+//       });
+//     }
+//     if (ns.allOf) {
+//       ns.allOf.forEach((v) => {
+//         processProps(v, indent + "  ");
+//       });
+//     }
+//     if(ns.properties) {
+//       processProperties(ns, indent + "  ");
+//     }
+//   });
+// }
+//
+// function processSchema(o: any) {
+//   const s = o as Schema;
+//   console.log("{");
+//   processProps(s, "  ");
+//   console.log("}");
+// }
