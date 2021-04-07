@@ -107,7 +107,7 @@ const reqmon = cli({
     }, 1000);
 
     const nc = await conn(flags);
-    console.log(`connected ${nc.info!.host}:${nc.info!.port}`);
+    console.log(`connected`);
     const sub = nc.subscribe(">");
     const done = (async () => {
       for await (const m of sub) {
