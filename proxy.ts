@@ -69,7 +69,9 @@ function service(
     ? Deno.openSync(fp, { write: true, truncate: true, create: true })
     : undefined;
 
-  console.log(`logging to ${fp}`);
+  if (file) {
+    console.log(`logging to ${fp}`);
+  }
 
   (async () => {
     const remote = await Deno.connect(hp);
