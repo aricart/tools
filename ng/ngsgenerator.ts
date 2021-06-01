@@ -4,7 +4,8 @@ import {
   decode,
   encodeGeneric,
   Key,
-} from "/Users/synadia/Dropbox/code/src/github.com/ConnectEverything/ngsapi-js/src/mod.ts";
+  Algorithms
+} from "/Users/aricart/Dropbox/code/src/github.com/ConnectEverything/ngsapi-js/src/mod.ts";
 import { KeyPair } from "https://deno.land/x/nkeys.js//modules/esm/mod.ts";
 const ngsg = cli({
   use: "ngsgenerator",
@@ -19,6 +20,7 @@ ngsg.addFlag({
 const apiServers: Map<string, string> = new Map<string, string>();
 apiServers.set("stage", "https://ngs-api.stage.synadia-ops.com");
 apiServers.set("prod", "https://api.synadia.io");
+apiServers.set("local", "http://127.0.0.1:8080")
 
 async function resolveKey(s: Key): Promise<KeyPair> {
   const sv = s as string;
@@ -29,15 +31,18 @@ async function resolveKey(s: Key): Promise<KeyPair> {
 }
 
 const operator = ngsg.addCommand({
-  use: "convert-operator --operator-key [seed|filepath] {--stage | --prod}",
-  short: "converts an operator jwt to v2",
+  use: "generate-operator --operator-key [seed|filepath] {--stage | --prod | --local} -K operatorKey --version [1|2]",
+  short: "regenerates an operator JWT optionally converting to v2",
   run: async (cmd, args, flags): Promise<number> => {
-    if (flags.value<boolean>("stage") && flags.value<boolean>("prod")) {
-      cmd.stderr("error: only one of --stage or --prod is allowed");
+    if (!flags.value<boolean>("stage") && !flags.value<boolean>("prod") && !flags.value<boolean>("local")) {
+      cmd.stderr("error:  --stage or --prod or --local is required");
       cmd.help();
       return Promise.resolve(1);
     }
     let apiserver = "";
+    if (flags.value<boolean>("local")) {
+      apiserver = apiServers.get("local") ?? "";
+    }
     if (flags.value<boolean>("stage")) {
       apiserver = apiServers.get("stage") ?? "";
     }
@@ -71,7 +76,14 @@ const operator = ngsg.addCommand({
       cmd.help();
       return Promise.resolve(1);
     }
-    const oc2 = await encodeGeneric(on, okp, "operator", oc.nats);
+
+    const opts =  {algorithm: Algorithms.v2};
+    const version = flags.value<number>("version");
+    if (version !== 2) {
+      opts.algorithm = Algorithms.v1;
+    }
+
+    const oc2 = await encodeGeneric(on, okp, "operator", oc.nats, opts);
 
     const fn = flags.value<string>("out");
     if (fn === "--") {
@@ -99,11 +111,23 @@ operator.addFlag({
   type: "boolean",
 });
 operator.addFlag({
+  name: "local",
+  usage: "target the local environment",
+  type: "boolean",
+});
+operator.addFlag({
   name: "out",
   short: "o",
   usage: "output-file",
   type: "string",
   default: "--",
 });
+operator.addFlag({
+  name: "version",
+  short: "v",
+  usage: "jwt version",
+  type: "number",
+  default: 2
+})
 
 ngsg.execute(Deno.args);
