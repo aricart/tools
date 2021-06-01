@@ -5,7 +5,7 @@ import {
   encodeGeneric,
   Key,
   Algorithms
-} from "/Users/aricart/Dropbox/code/src/github.com/ConnectEverything/ngsapi-js/src/mod.ts";
+} from "/tmp/ngsapi-js/src/mod.ts";
 import { KeyPair } from "https://deno.land/x/nkeys.js//modules/esm/mod.ts";
 const ngsg = cli({
   use: "ngsgenerator",
