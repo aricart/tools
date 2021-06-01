@@ -5,8 +5,8 @@ import {
   encodeGeneric,
   Key,
   Algorithms
-} from "/tmp/ngsapi-js/src/mod.ts";
-import { KeyPair } from "https://deno.land/x/nkeys.js//modules/esm/mod.ts";
+} from "file:///tmp/ngsapi-js/src/mod.ts";
+import { KeyPair } from "https://deno.land/x/nkeys.js/modules/esm/mod.ts";
 const ngsg = cli({
   use: "ngsgenerator",
   short: "generates ngs entities and configurations",
